@@ -1,0 +1,9 @@
+
+
+Pagina de ibm con definiciones de fortran
+con BNF form
+
+https://www.ibm.com/docs/es/openxl-fortran-aix/17.1.0?topic=attributes-use
+
+
+

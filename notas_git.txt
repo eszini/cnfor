@@ -1,0 +1,42 @@
+#
+#
+#
+#
+#	Paso a paso en git de distintos cambios
+#
+
+# ---------------------------------------------------------------
+# Para editar un archivo 'file_a' y luego renombrar a 'file_b'
+# ---------------------------------------------------------------
+
+
+git status
+git checkout -b feature/rename_file
+vi file_a
+git add file_a
+gir mv fila_a file_b
+git commit -m "renombra file_a file_b"
+git push --set-upstream origin feature/rename_file
+git checkout main
+git pull
+git branch -d feature/rename_file
+
+
+
+# ---------------------------------------------------------------
+# Para borrar un archivo file_a
+# ---------------------------------------------------------------
+
+
+git status
+git checkout -b feature/delete_file
+git rm file_a
+git commit -m "borre fila_a"
+git push --set-upstream origin feature/delete_file
+git checkout main
+git pull
+git branch -d feature/delete_file
+
+
+
+

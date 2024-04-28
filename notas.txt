@@ -1,0 +1,25 @@
+
+#
+#
+#	Corrida para probar ver los "use" en lineas
+#
+#
+
+
+./cnv_f07 -v -opciones=d5 -inp=programa1.for -out=p2.for -proc=1 -src=programa1.for -aux=p2.log  > log
+
+
+
+-v			verbose
+-opciones=d5		maximo nivel de verbose
+
+-inp=programa1.for	input, programa1.for , fuente fortran para parsear
+-out=p2.for		output, nueva version de programa fortran desp de parserar
+
+-proc=1			estoy corriendo un proceso alternativo
+-src=programa1.for	fuente de entrada para proc1
+
+-aux=p2.log		mando avisos a este file 
+			ej. caracteres que el parser no reconoce
+			
+

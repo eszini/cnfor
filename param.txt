@@ -1,0 +1,4 @@
+_v
+-opciones=d5
+-inp=list_make
+-in2=list_repo
