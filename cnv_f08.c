@@ -15,7 +15,7 @@
 /*
  *	//header//
  *
- *	cnv_f07.c
+ *	cnf_f08.c
  *	
  *
  *	2024_04_28
@@ -44,28 +44,28 @@
  *
  *	1) Mostrar uso
  *
- *	cnv_f07
- *	cnv_f07 -h
+ *	cnf_f08
+ *	cnf_f08 -h
  *
  *
  *	2) Opciones de debug
  *
- *	cnv_f07 -v                     activa debug, nivel full ... equivalente a d5 
- *	cnv_f07 -v -opciones=Ln        letra L (i informativo d debug e no_me_acuerdo)  
+ *	cnf_f08 -v                     activa debug, nivel full ... equivalente a d5 
+ *	cnf_f08 -v -opciones=Ln        letra L (i informativo d debug e no_me_acuerdo)  
  *	                                  Nro n nivel 1 a 5 ... 5 full
  *	3) parser
  *
  *	parsea programa.for, output a copia.for en mismo formato, 
  *	si parser no reconoce caracter, lo pone en log2
  *	
- *	cnv_f07 -v -f -opciones=d5 -inp=programa.for -out=copia.for -aux=log2  
+ *	cnf_f08 -v -f -opciones=d5 -inp=programa.for -out=copia.for -aux=log2  
  *
  *	4) contar caracteres
  * 
  *	para comparar si programa1.for y p2.for tienen la misma cantidad de caracteres "utiles"
  *
- *	./cnv_f07 -v -opciones=d5 -inp=programa1.for -out=p1.chr -exec=1 > log1
- * 	./cnv_f07 -v -opciones=d5 -inp=p2.for        -out=p2.chr -exec=1 > log2
+ *	./cnf_f08 -v -opciones=d5 -inp=programa1.for -out=p1.chr -exec=1 > log1
+ * 	./cnf_f08 -v -opciones=d5 -inp=p2.for        -out=p2.chr -exec=1 > log2
  *
  *	5) abre archivo, lee a vector en memoria para procesos varios y genera output
  *
@@ -74,9 +74,9 @@
  *
  *
  *
+ * - - - - - - - - - - - - - - - - - - - - - - - - 
  *
- *
- *	xx) Muestra por pantalla, 11 ejercicios de como manejar estructuras
+ *	xx) Muestra por pantalla, 14 ejercicios de como manejar estructuras
  *
  *	./prog  -v -f -opciones=d5 -prue=1
  *
@@ -87,9 +87,15 @@
  *	funciones de ejemplo para pasarles punteros a punteros y mas ...
  *
  *
+ *
+ *
+ *
+ *
+ * - - - - - - - - - - - - - - - - - - - - - - - - 
+ *
  *	xx) Carga dos lista l1 y l2, verifica que elementos de l2 estan / no estan en l1
  *
- *	./cnv_f07 -v -opciones=d5 -tool=1 -inp=l1 -in2=l2 -out=l3 
+ *	./cnf_f08 -v -opciones=d5 -tool=1 -inp=l1 -in2=l2 -out=l3 
  *
  *
  *	tool1: 
@@ -97,9 +103,12 @@
  *
  *
  *
+ *
+ * - - - - - - - - - - - - - - - - - - - - - - - - 
+ *
  *	xx) Carga un archivo formato makefile y devuelve una lista de archivos de dependencias
  *
- *	./cnv_f07 -v -opciones=d5 -tool=2 -inp=makefile -out=lista
+ *	./cnf_f08 -v -opciones=d5 -tool=2 -inp=makefile -out=lista
  *
  *
  *	tool2: 
@@ -109,7 +118,34 @@
  *
  *
  *
+ * - - - - - - - - - - - - - - - - - - - - - - - - 
  *
+ *	xx) Carga un archivo formato con nombre files y genera igual en minuscula
+ *
+ *	./cnf_f08 -v -opciones=d5 -tool=3 -inp=nom_file -out=nom_file_minusculas
+ *
+ *
+ *	tool3: 
+ *	carga un file con listado de files y genera listado con mismos archivos,
+ *	pasados a minuscula
+ *
+ *
+ * - - - - - - - - - - - - - - - - - - - - - - - - 
+ *
+ * - - - - - - - - - - - - - - - - - - - - - - - - 
+ *
+ *	xx) Carga un archivo fuente, parsea, y deja listo para cambios
+ *
+ *	./cnf_f08 -v -opciones=d5 -tool=5 -inp=a_org -out=a_new
+ *
+ *	./cnf_f08 -v -opciones=d5 -tool=5 -inp=a_org -out=a_new -nvd=1,2,3
+ *
+ *
+ *	tool5: 
+ *	toma un fuente fortran
+ *	parsea en tokens
+ *	cambios :
+ *	- 
  *
  *
  *
@@ -190,7 +226,7 @@
 #define	MAXV	64	/* buffer chico */
 #define	MAXR	128	/* buffer razonable */
 #define	MAXB	1024	/* buffer grande */
-#define	MAXT	200 	/* maximo de tokens en tabla */
+#define	MAXT	256 	/* maximo de tokens en tabla */
 #define	MAXF	64	/* largo de archivos de input - output - marcas etc */
 #define	MAXP	128	/* maximo de palabras en general */
 #define	HUGE	4096	/* huge buffer */
@@ -314,6 +350,8 @@ int	pro_proc3();
 int	pro_tool1();
 int	pro_tool2();
 int	pro_tool3();
+int	pro_tool4();
+int	pro_tool5();
 
 
 
@@ -328,6 +366,7 @@ int	pro_tool3();
 #define	TC_NUM	7	/* numero */
 #define	TC_CVR	8	/* caracteres varios ' % */
 #define	TC_GBJ	9	/* guion bajo '_' */
+#define	TC_CHO	10	/* 0 - choto */
 #define	TC_RST	99
 
 char	finp[MAXF];	/* archivo inp para entrada segun necesidad */
@@ -755,6 +794,10 @@ int	proceso_principal()
 			pro_tool2();
 		if (fftoo == 3)
 			pro_tool3();
+		if (fftoo == 4)
+			pro_tool4();
+		if (fftoo == 5)
+			pro_tool5();
 	}
 
 
@@ -901,6 +944,7 @@ int	proc_principal()
 					tk[q_tk][p2]=0;
 					q_tk++;
 					break;
+
 
 				/* blanco o tab */
 				case TC_BLA:
@@ -2403,7 +2447,6 @@ int	pro_prue2()
 			if (gp_fverbose("d1"))
 				printf ("%3d |%s|\n",ql,d1);
 
-/* locator EEE */	
 			if ( 1 && ((hw = fopen (d1,"r")) == NULL) )
 				error(601);
 
@@ -2730,6 +2773,9 @@ int	*l1;
 
 	while (fgets(b1,MAXB,pfr) != NULL)
 	{
+		if (gp_minusculas)
+			strcpy(b1,pasar_a_minusc(b1));
+
 #if 0
 		if (!linea_vacia(b1)  && b1[0] != '#' )
 #endif
@@ -3059,14 +3105,14 @@ char	*s2;
 			while (b1[p1] == ' ' || b1[p1] == 9 )
 			{	p1++;
 				if (p1 == MAXR )
-					error (501);
+					error (502);
 			}
 			
 			while ( is_use_valid( b1[p1+p2] ) ) 	/* condicion de palabra valida para nombre de use */
 			{
 				p2++;
 				if (p2 == MAXR)
-					error (502);
+					error (503);
 			}
 
 			strncpy (b2,b1+p1,p2);
@@ -3178,6 +3224,7 @@ char	c;
 int	pro_tool1()
 {
 	int	i,j,k;
+	char	b1[MAXB];
 
 	char	z[MAXV];
 	sprintf (z,"tool1");
@@ -3186,6 +3233,11 @@ int	pro_tool1()
 	if (gp_fverbose("d1"))
 	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
 	}
+
+	/* chequeo de parametros minimos */
+	if (!ffinp || !ffin2 || !ffout || !ffou2 )
+		gp_uso(0);
+
 
 	fnq1 = &fnp[0];
 	qf_load(hfinp,fnq1,&qf_lin);
@@ -3254,11 +3306,16 @@ int	check_c1()
 		{
 			if (!strcmp ( (*fnp[j]).l , (*fnf[i]).l ) ) 
 			{
-	printf (" esta: |%s| \n", (*fnf[j]).l );
-
+				printf ("esta si: |%s| \n", (*fnf[i]).l );
 				(*fnf[i]).f1 = 1;
 				f1 = 0;
 			}
+		}
+
+		if (f1 && j == qf_lin)
+		{
+			printf ("esta no: |%s| \n", (*fnf[i]).l );
+			(*fnf[i]).f1 = 2;
 		}
 	}
 
@@ -3880,23 +3937,466 @@ char	*s;
 
 int	pro_tool3()
 {
-	sprintf (gp_p,"tool3");
+	int	i,j,k;
+	char	b1[MAXB];
+
+	char	z[MAXV];
+	sprintf (z,"tool3");
 
 	/* proceso */
 	if (gp_fverbose("d1"))
-	{	printf ("%s%s%s\n\n",gp_e,gp_p,gp_tm());
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
+	}
+
+	fnq1 = &fnp[0];
+	qf_load(hfinp,fnq1,&qf_lin);
+
+
+	for (i=0; i< qf_lin; i++)
+	{
+		strcpy(b1,pasar_a_minusc( (*fnp[i]).l ));
+
+		if (gp_fverbose("d1"))
+			printf ("%4d |%s| \n", i,b1 );
+
+		fprintf (hfout,"%s\n",b1);
 	}
 
 
-
 	/* proceso */
 	if (gp_fverbose("d1"))
-	{	printf ("%s%s%s\n\n",gp_p,gp_p,gp_tm());
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[1],z);
 	}
 }
 
 
 
+
+
+
+/*
+ * -----------------------------------------------------------------------------------
+ *
+ *	tool4
+ *
+ * -----------------------------------------------------------------------------------
+ */
+
+/*
+ *	Descrip
+ *
+ * 
+ *
+ */
+
+
+#if 1
+
+int	pro_tool4()
+{
+	int	i,j,k;
+	int	ql_ini,ql_fin;
+	char	b1[MAXB];
+
+	char	z[MAXV];
+	sprintf (z,"tool4");
+
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
+	}
+
+	/* cargamos file en memo */
+	fnq1 = &fnp[0];
+	qf_load(hfinp,fnq1,&ql_ini);
+
+
+	/* mientras que no cambie la cant de lineas !!! */
+	ql_fin=ql_ini;
+
+
+	/* grabo file */
+	for (i=0; i< ql_fin; i++)
+	{
+		strcpy(b1, (*fnp[i]).l );
+
+		if (gp_minusculas)
+			strcpy( b1 , pasar_a_minusc( (*fnp[i]).l )  );
+
+		fprintf (hfout,"%s\n",b1);
+	}
+
+
+
+
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[1],z);
+	}
+}
+
+
+
+#endif
+
+
+
+
+/*
+ * -----------------------------------------------------------------------------------
+ *
+ *	tool5
+ *
+ * -----------------------------------------------------------------------------------
+ */
+
+/*
+ *	Descrip
+ *
+ * 
+ *
+ */
+
+
+int	pro_tool5()
+{
+
+	int	px,py;
+
+	int	i,j,k;
+	int	m1,m2,m3;
+	int	f1,f2,f3,f4;
+	int	q_lin;
+	int	q_tk;
+	int	p1,p2,p3,p4;
+
+	char	b1[MAXB];
+	char	b2[MAXB];
+	char	b3[MAXB];
+	char	tk[MAXT][MAXB];
+
+	char	z[MAXV];
+	sprintf (z,"tool5");
+
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
+	}
+
+/* tool5 */
+#if 1
+
+	/* si encuentro caracteres no considerados para el parser, avisar al final de todo el proceso */
+	flag_caracteres = 0;
+
+	q_lin=0;
+	memset(b1,32,MAXB);
+	memset(b2,0,MAXB);
+
+	while (fgets(b1, MAXB, hfinp) != NULL)
+	{
+	    /* proceso todas las lineas */
+	    if ( 1 )
+	    {
+
+/* locator EEE */
+
+
+#if 1
+		/* blancos al final */
+		for (i=strlen(b1)-1, f4=1 ; i && f4 ; i-- )
+			if (b1[i] == ' ' || b1[i] == '\n' || b1[i] == '\r' )
+				b1[i]=0;
+			else
+				b1[i+1]='\n', b1[i+2]=0, f4=0;
+#endif
+	
+ 
+
+		f1=1;
+
+		if (gp_fverbose("d1"))
+		{
+			printf ("Linea  : %d \n\n",q_lin);
+			printf ("Buffer :|%s|\n\n",b1);
+		}
+
+
+
+		/* comienzo parser de tokens */
+		p1=0;
+		q_tk=0;
+
+		while ( f1 )
+		{
+			/* controlamos cantidad de tokens ... */
+			if (q_tk > MAXT-10)
+			{	error(501);
+			} 
+
+			j=tipo_char(b1[p1]);
+
+			switch (j)
+			{
+				/* otro caracter !!! */
+				case TC_RST:
+					flag_caracteres=1;
+					if (gp_fverbose("d1"))
+					{
+						printf ("Caracter no definido para parser: |%c| |%d|\n",b1[p1],b1[p1]);
+						if (ffaux)
+							fprintf (hfaux,"Caracter no definido %d %c\n",b1[p1],b1[p1]);
+							
+					}
+					p1++; 
+					break; 
+
+				/* letras */
+				case TC_LET:
+					p2=0;
+					while ( (j=tipo_char(b1[p1])) == TC_LET || \
+					        (j == TC_NUM && !char_demed(b1[p1-1])  ) )
+						tk[q_tk][p2++]=b1[p1++];
+					tk[q_tk][p2]=0;
+					q_tk++;
+					break;
+
+				/* numeros tenemos que contemplar 3.3 o 3,3 !! */
+				case TC_NUM:
+					p2=0;
+					while ( (j=tipo_char(b1[p1])) == TC_NUM || \
+						(tipo_char(b1[p1]) == TC_PNT && tipo_char(b1[p1+1]) == TC_NUM ) || \
+						( (b1[p1]) == ',' && tipo_char(b1[p1+1]) == TC_NUM ) )
+					{	tk[q_tk][p2]=b1[p1];
+						p1++;
+						p2++;
+					}
+					tk[q_tk][p2]=0;
+					q_tk++;
+					break;
+
+				/* choto */
+				case TC_CHO:
+					/* opcion: no los guardo */
+					tk[q_tk][0]=' ';
+					tk[q_tk][1]=0;
+					p1++;
+					f1=0;
+					break;
+
+
+
+
+#if 0
+					while ( (j=tipo_char(b1[p1])) == TC_CHO)
+					{	printf ("estoy perdido en choto %d \n",p1);
+					 	p1++;	
+					}
+
+#endif
+					break;
+#if 0
+					tk[q_tk][0]=b1[p1];
+					tk[q_tk][1]=0;
+					p1++;
+					f1=0;
+					break;
+#endif
+
+
+
+				/* blanco o tab */
+				case TC_BLA:
+#if 0
+					/* opcion: no los guardo */
+					while ( (j=tipo_char(b1[p1])) == TC_BLA)
+					       p1++;	
+#endif
+					/* opcion: los guardo */
+					tk[q_tk][0]=b1[p1];
+					tk[q_tk][1]=0;
+					q_tk++;
+					p1++;
+
+					break;
+
+				/* coma */
+				case TC_CCE:
+					tk[q_tk][0]=b1[p1];
+					tk[q_tk][1]=0;
+					q_tk++;
+					p1++;
+					break;
+
+				/* punto */
+				case TC_PNT:
+					tk[q_tk][0]=b1[p1];
+					tk[q_tk][1]=0;
+					q_tk++;
+					p1++;
+					break;
+
+				/* parentesis abre */
+				case TC_PAA:
+					tk[q_tk][0]=b1[p1];
+					tk[q_tk][1]=0;
+					q_tk++;
+					p1++;
+					break;
+
+				/* parentesis cierra */
+				case TC_PAC:
+					tk[q_tk][0]=b1[p1];
+					tk[q_tk][1]=0;
+					q_tk++;
+					p1++;
+					break;
+
+				/* fin de linea */
+				case TC_EOL:
+					tk[q_tk][0]=b1[p1];
+					tk[q_tk][1]=0;
+					p1++;
+					f1=0;
+					break;
+
+				/* caracteres varios */
+				case TC_CVR:
+					tk[q_tk][0]=b1[p1];
+					tk[q_tk][1]=0;
+					q_tk++;
+					p1++;
+					break;
+
+				/* fin de linea */
+				default:
+					printf ("Default, algo salio mal  !!!\n\n");
+					f1=0;
+					break;
+			}
+
+		} /* while */
+
+
+		if (gp_fverbose("d1"))
+			printf ("termine de parsear linea \n");
+
+
+		/* verifico si hay que sacar output  en minusculas */
+		if (gp_minusculas)
+		{
+			for (j=0; j< q_tk; j++)
+				strcpy(tk[j],pasar_a_minusc(tk[j]));
+		}
+
+
+		/* salida en formato token columnar */
+		if (gp_fsentencia == 0)
+		{
+
+			/* pidio nivel de descripcion en salida ... agrego la sentencia */
+			if (gp_niveldes)
+				fprintf (hfout,"%s\n",b1);
+
+			/* grabo los tokens encontrados */
+			for (j=0; j< q_tk; j++)
+			{
+				switch (gp_niveldes)
+				{
+
+					case 0:
+						fprintf (hfout,"%s\n",tk[j]);
+						break;
+
+					case 1:
+						fprintf (hfout,"%3d,%s\n",j,tk[j]);
+						break;
+
+					default:
+						fprintf (hfout,"%s\n",tk[j]);
+						break;
+				}
+
+
+				if (gp_fverbose("d1"))
+					printf ("%3d,%s\n",j,tk[j]);
+
+			}
+
+		}
+
+
+
+		/* salida en formato sentencia */
+		if (gp_fsentencia == 1)
+		{
+			/* grabo los tokens encontrados */
+			for (j=0; j< q_tk; j++)
+			{
+				fprintf (hfout,"%s",tk[j]);
+
+				if (gp_fverbose("d1"))
+					printf ("%3d,%s\n",j,tk[j]);
+			}
+
+
+			/* se termino la linea */
+			fprintf (hfout,"\n");
+		}
+
+
+		for (j=0; j< q_tk; j++)
+		{
+			strcat (b2,tk[j]);
+		}
+		strcat (b2,"\n");
+		printf ("strcat: |%s| \n",b2);
+
+
+
+		if (gp_fverbose("d1"))
+		{
+			printf ("\n");
+		}
+
+
+
+		/* 
+		 * Termine todo lo que tenia que hacer con esta linea,
+		 * sumo lineas 
+		 *
+		 */
+
+		memset(b1,32,MAXB);
+		memset(b2,0,MAXB);
+		q_lin++;
+
+
+	    } /* if ... no esta vacia la linea */
+
+	}  /* while fgets ... */
+
+	
+	if (gp_fverbose("d1"))
+	{
+		printf ("Cant de lineas procesadas %d\n",q_lin);
+		printf ("\n\n\n");
+	}
+
+
+
+#endif
+/* tool5 */
+
+
+
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[1],z);
+	}
+
+
+}
 
 
 
@@ -4668,6 +5168,12 @@ int	gp_parser()
 				ffout=1;
 			}
 
+			if (!strncmp(gp_fp(GP_GET,i,(char **)0)+1,"ou2",3) )
+			{
+				strcpy(fou2,desde_igual( gp_fp(GP_GET,i,(char **)0)));
+				ffou2=1;
+			}
+
 			if (!strncmp(gp_fp(GP_GET,i,(char **)0)+1,"aux",3) )
 			{	
 				strcpy(faux,desde_igual( gp_fp(GP_GET,i,(char **)0)));
@@ -5055,7 +5561,7 @@ char	c;
 	if (c == '_' )
 		x = TC_GBJ;
 
-	if (c == ',' || c == ';' || c == ':' || c == '-' || c == '/' )
+	if (c == ',' || c == ';' || c == ':' || c == '-' || c == '/' || c == '\\' )
 		x = TC_CCE;
 
 	if (c == '.' )
@@ -5083,6 +5589,9 @@ char	c;
 
 	if (c == '"' || c == '&' || c == '+' || c == '=' || c == '>' || c == '<' || c == '?' )
 		x = TC_CVR;
+
+	if (c == 0)
+		x = TC_CHO;
 
 	return x;
 }
@@ -9634,7 +10143,7 @@ char	*s;
 /*
  * -----------------------------------------------------------------------------------
  *
- *	rutinaile
+ *	tool X
  *
  *	descripcion    Hacer 32 dd parado en if 0 !!
  *
@@ -9642,10 +10151,10 @@ char	*s;
  */
 
 
-int	rutina()
+int	pro_toolX()
 {
 	char	z[MAXV];
-	sprintf (z,"rutina");
+	sprintf (z,"toolX");
 
 	/* proceso */
 	if (gp_fverbose("d1"))
