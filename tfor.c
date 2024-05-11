@@ -12,14 +12,14 @@
 
 
 
-
-
-
 /*
  *	//header//
  *
  *	tfor.c
  *	
+ *
+ * 	Sat May 11 06:59:21 -03 2024
+ *	agregue que funcione con logical real y character
  *
  *	Thu May  9 06:34:25 -03 2024
  *	agregue tool6 para arreglar lineas de continuacion
@@ -426,6 +426,7 @@ int	ffout;
 int	ffou2;
 int	ffaux;		/* archivo aux para output segun necesidad */
 int	fflog;		/* archivo log para output segun necesidad */
+int	ffcfg;		/* archivo de configuracion */
 
 int	ffsrc;
 int	fflst;
@@ -582,6 +583,7 @@ int	l_pars(int, int *);
 int	tiene_dec_var1();
 int	tiene_mas(char *);
 int	fix_dec_var1();
+int	fix_dec_var2();
 int	p_src();
 int	es_cadena_valida(int,char *);
 
@@ -2799,6 +2801,10 @@ int	pro_prue3()
 	char	b2[MAXB];
 	FILE	*hwi;
 
+	char	*v1[100];
+	char	**s1;
+	char	t[100][64];
+
 	char	z[MAXV];
 	sprintf (z,"prue3");
 
@@ -2807,10 +2813,25 @@ int	pro_prue3()
 	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
 	}
 
+#if 0
 	if (!1 || !2 )
 		gp_uso(11);
+#endif
 
 	/* bloque */
+	for (i=0; i<100; i++)
+	{
+		sprintf (t[i],"Param %3d",i);
+		v1[i] = t[i];
+	}
+
+	s1 = &v1[0];
+
+	for (i=0; i<100; i++)
+	{
+		printf ("Param : %3d  = |%s| \n",i,*(s1+i) );
+	}	
+
 
 		
 	/* proceso */
@@ -4520,6 +4541,10 @@ int	pro_tool4()
 	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
 	}
 
+	/* chequeamos reqs */
+	if (!ffinp || !ffout || !ffaux )
+		gp_uso(11);
+
 	/* cargamos file en memo */
 	fnq1 = &fnp[0];
 	qf_load(hfinp,fnq1,&ql_ini);
@@ -4564,6 +4589,14 @@ int	pro_tool4()
  * -----------------------------------------------------------------------------------
  */
 
+/*
+ *	f1
+ *	1 - integer
+ *	2 - logical
+ * 	3 - real
+ *
+ */
+
 
 int	cfor_vars(ql_i,ql_f)
 int	*ql_i;
@@ -4591,15 +4624,39 @@ int	*ql_f;
 
 		if ( f1=tiene_dec_var1() )
 		{
-			if (! fix_dec_var1 () )
-				error(701);
-			else
+			/* caso int, log, real */
+			if (f1 == 1 || f1 == 2 || f1 == 3)
 			{
-				printf ("fixed ! \n");
-				printf ("cfor:  linea %4d #tk %4d |%s|\n",i,q_tk,b1);
-				for (j=0; j<q_tk; j++)
+				/* si no lo pude arreglar, encontre un caso no contemplado !!*/
+				if (! fix_dec_var1 () )
+					error(701);
+				else
 				{
-					printf ("TK: %3d %3d f1: %d |%s|\n",j,strlen(tk[j]),f1,tk[j]);
+					if (gp_fverbose("d3"))
+					{	printf ("fixed %d ! \ncfor:  linea %4d #tk %4d |%s|\n",f1,i,q_tk,b1);
+						for (j=0; j<q_tk; j++)
+						{
+							printf ("TK: %3d %3d f1: %d |%s|\n",j,strlen(tk[j]),f1,tk[j]);
+						}
+					}
+				}
+			}
+
+			/* caso character */
+			if (f1 == 4 )
+			{
+				/* si no lo pude arreglar, encontre un caso no contemplado !!*/
+				if (! fix_dec_var2 () )
+					error(702);
+				else
+				{
+					if (gp_fverbose("d3"))
+					{	printf ("fixed %d! \ncfor:  linea %4d #tk %4d |%s|\n",f1,i,q_tk,b1);
+						for (j=0; j<q_tk; j++)
+						{
+							printf ("TK: %3d %3d f1: %d |%s|\n",j,strlen(tk[j]),f1,tk[j]);
+						}
+					}
 				}
 			}
 				
@@ -4649,6 +4706,8 @@ int	fix_dec_var1()
 	func  = 0;
 	opt   = 0;
 	cont  = 0;
+	n_type = 0;
+
 
 	f_aster = 1;
 
@@ -4658,6 +4717,18 @@ int	fix_dec_var1()
 			minus = 1, n_type = i;
 
 		if (!strcmp("INTEGER",tk[i]) )
+			minus = 0, n_type = i;
+
+		if (!strcmp("logical",tk[i]) )
+			minus = 1, n_type = i;
+
+		if (!strcmp("LOGICAL",tk[i]) )
+			minus = 0, n_type = i;
+
+		if (!strcmp("real",tk[i]) )
+			minus = 1, n_type = i;
+
+		if (!strcmp("REAL",tk[i]) )
 			minus = 0, n_type = i;
 
 		if (!kind && !strcmp(":",tk[i]) && !strcmp(":",tk[i+1]) )
@@ -4684,7 +4755,6 @@ int	fix_dec_var1()
 
 		if (!strcmp("function",tk[i]) )
 		{	func = 1, n_func = i;
-			printf ("En strcmp ... %d\n",func);
 		}
 
 		if (!strcmp("&",tk[i]) )
@@ -4692,15 +4762,18 @@ int	fix_dec_var1()
 	}
 
 
-	strcpy(varb,"INTEGER");
+	strcpy(varb,tk[n_type]);
 	if (minus)
-		strcpy(varb,"integer");
+		strcpy(varb,pasar_a_minusc(tk[n_type]));
 
 
 
 		
-	for ( i1 = 0 ; i1< 8; i1++)
-		printf ("Token-1-  %d |%s| \n",i1,tk[i1]);
+	if (gp_fverbose("d4"))
+	{
+		for ( i1 = 0 ; i1< 8; i1++)
+			printf ("Token-1-  %d |%s| \n",i1,tk[i1]);
+	}
 
 	i = n_type;
 	f1=0;
@@ -4708,27 +4781,21 @@ int	fix_dec_var1()
 	/* esta en minuscula y tiene asterisco valor  */
 	if ( !f1 && aster )
 	{
-printf (" ---- 1   func %d\n",func);
 
 		ca = tk[n_aster+1][0];
 
 		if (ca == '1' || ca == '2' || ca == '4' || ca == '8' )
 		{
-printf (" ---- 2\n");
 			sprintf (tk[i] , "%s (kind=%c)",varb,ca);
 			sprintf (tk[i+1]," ");
 					
 			if (!kind)
 			{
-printf (" ---- 3\n");
 				if (ult == 0)
 					ult = i+1;
 
 				if (!func)
 				{	
-printf (" ---- 4\n");
-printf (" ---- 4   func %d\n",func);
-
 					sprintf (tk[ult],"%s"," :: ");
 					ca = tk[ult+1][0];
 					if (ca == '1' || ca == '2' || ca == '4' || ca == '8' )
@@ -4740,8 +4807,184 @@ printf (" ---- 4   func %d\n",func);
 					ca = tk[ult+1][0];
 					if (ca == '1' || ca == '2' || ca == '4' || ca == '8' )
 						sprintf (tk[ult+1]," ");
+				}
+			}
+
+			f1 = 1;
+		}
+	}
 
 
+	/* esta en minuscula y no tiene asterisco valor */
+	if ( !f1 && !aster)
+	{
+		if (!kind)
+		{
+			if (ult == 0)
+				ult = i+1;
+
+			if (!func)
+				sprintf (tk[ult],"%s"," :: ");
+		}
+
+		f1 = 1;
+	}
+
+	return(f1);
+}
+
+
+
+
+
+
+
+int	fix_dec_var2()
+{
+	int	i,j,k,i1;
+	int	f1;
+	int	minus, aster, kind, opt, inten, alloca, save, func, cont;
+	int	n_minus, n_aster, n_kind, n_opt, n_inten, n_alloca, n_save, n_func, n_cont;
+	int	ult, n_type;
+	int	f_aster;
+
+	char	ca;
+	char	nr[16];
+	char	varb[MAXB];
+
+
+	alloca = 0;
+	func  = 0;
+	inten = 0;
+	aster = 0;
+	save  = 0;
+	kind  = 0;
+	ult   = 0;
+	func  = 0;
+	opt   = 0;
+	cont  = 0;
+	n_type = 0;
+
+
+	f_aster = 1;
+
+	for (i=0; i< q_tk; i++)
+	{	
+		if (!strcmp("character",tk[i]) )
+			minus = 1, n_type = i;
+
+		if (!strcmp("CHARACTER",tk[i]) )
+			minus = 0, n_type = i;
+
+		if (!kind && !strcmp(":",tk[i]) && !strcmp(":",tk[i+1]) )
+			kind=1,n_kind = i;
+
+		if (!n_aster && !strcmp("*",tk[i]) && ( i - n_type < 4 ) )
+			aster = 1, n_aster=i;
+
+		if (!strcmp("optional",tk[i]) || !strcmp("OPTIONAL",tk[i]) )
+			opt = 1, n_opt = i, ult=i;
+
+		if (!strcmp("intent",tk[i]) || !strcmp("INTENT",tk[i]) )
+		{	inten = 1, n_inten = i, ult=i;
+			for (k=i+1; k< i+8; i++)
+				if (tk[k][0] == ')')
+					ult=k;
+		}
+
+		if (!strcmp("allocatable",tk[i]) )
+			alloca = 1, n_alloca = i, ult=i;
+
+		if (!strcmp("save",tk[i]) )
+			save = 1, n_save = i, ult=i;
+
+		if (!strcmp("function",tk[i]) )
+		{	func = 1, n_func = i;
+		}
+
+		if (!strcmp("&",tk[i]) )
+			cont = 1, n_cont = i;
+	}
+
+
+	strcpy(varb,tk[n_type]);
+	if (minus)
+		strcpy(varb,pasar_a_minusc(tk[n_type]));
+
+		
+	if (gp_fverbose("d3"))
+	{
+		for ( i1 = 0 ; i1< 8; i1++)
+			printf ("Token-1-  %d |%s| \n",i1,tk[i1]);
+	}
+
+	i = n_type;
+	f1=0;
+
+	/* esta en minuscula y tiene asterisco valor  */
+	if ( !f1 && aster )
+	{
+		strcpy(nr,tk[n_aster+1]);
+
+		if (es_num_tk(nr) )
+		{
+			sprintf (tk[i] , "%s (len=%s)",varb,nr);
+			sprintf (tk[i+1]," ");
+					
+			if (!kind)
+			{
+				if (ult == 0)
+					ult = i+1;
+
+				if (!func)
+				{	
+					sprintf (tk[ult],"%s"," :: ");
+					ca = tk[ult+1][0];
+					if (es_num_tk(nr))
+						sprintf (tk[ult+1]," ");
+				}
+
+				if (func)
+				{
+					ca = tk[ult+1][0];
+					if (es_num_tk(nr))
+						sprintf (tk[ult+1]," ");
+				}
+			}
+
+			f1 = 1;
+		}
+
+
+		if (tk[n_aster+1][0] == '(' && tk[n_aster+2][0] == '*' && tk[n_aster+3][0] == ')' )
+		{
+			sprintf (tk[n_aster+1]," ");
+			tk[n_aster+2][0] = 0;
+			tk[n_aster+3][0] = 0;
+	
+
+			/* es de la forma character*(*) ... */
+			sprintf (tk[i] , "%s (len=*)",varb);
+			sprintf (tk[i+1]," ");
+
+			if (!kind)
+			{
+				if (ult == 0)
+					ult = i+1;
+
+				if (!func)
+				{	
+					sprintf (tk[ult],"%s"," :: ");
+					ca = tk[ult+1][0];
+					if (es_num_tk(nr))
+						sprintf (tk[ult+1]," ");
+				}
+
+				if (func)
+				{
+					ca = tk[ult+1][0];
+					if (es_num_tk(nr))
+						sprintf (tk[ult+1]," ");
 				}
 			}
 
@@ -4766,10 +5009,23 @@ printf (" ---- 4   func %d\n",func);
 	}
 
 
-
-
 	return(f1);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 int	tiene_dec_var1()
@@ -4789,6 +5045,12 @@ int	tiene_dec_var1()
 	{
 		if ( !strcmp("integer", pasar_a_minusc( tk[i] )) )
 			f1 = 1;
+		if ( !strcmp("logical", pasar_a_minusc( tk[i] )) )
+			f1 = 2;
+		if ( !strcmp("real", pasar_a_minusc( tk[i] )) )
+			f1 = 3;
+		if ( !strcmp("character", pasar_a_minusc( tk[i] )) )
+			f1 = 4;
 	}
 
 	return f1;
@@ -6372,7 +6634,6 @@ int	gp_print()
  *	gp_parser
  *
  *	parser general de parametros de input al programa
- * 
  *
  * -----------------------------------------------------------------------------------
  */
@@ -6383,7 +6644,8 @@ int	gp_parser()
 	int i,j,fl;
 	char	prm[MAXV];
 
-	char	var1[MAXV];   /* provisorio !! */
+	char	var1[MAXB];   /* provisorio !! */
+	FILE	*hwi;
 
 
 
@@ -6406,8 +6668,55 @@ int	gp_parser()
 		{	strcpy(gp_opciones,desde_igual( gp_fp(GP_GET,i,(char **)0)));
 		}
 
-
 	}
+
+#if 0
+
+	/* Experimentos .... si puso archivo de configuracion
+	 * para todo ???
+	 * o solo para cuestiones particulares ??
+	 *
+	 */
+
+	/* si selecciono archivo de configuracion */
+	for (i=0, fl=1; i < gp_fq(GP_GET,0); i++)
+	{
+		printf ("arg %2d |%s| \n", i, gp_fp(GP_GET,i,(char **) 0 ));
+		/* parameter type 3 ... "-someoption=somename" */
+		if ( i && fl && *( gp_fp(GP_GET,i,(char **)0) + 0) == '-' && 
+		                *( gp_fp(GP_GET,i,(char **)0) + 1) != '-' && tiene_igual( gp_fp(GP_GET,i,(char **)0) ) )
+		{
+			if (!strncmp(gp_fp(GP_GET,i,(char **)0)+1,"cfg",3) )
+			{
+				strcpy(var1,desde_igual( gp_fp(GP_GET,i,(char **)0)));
+				ffcfg=1;
+			}
+		}
+
+
+		if (ffcfg)
+		{
+			if ( ffcfg && ((hwi = fopen (var1,"r")) == NULL) )
+				error(999);
+
+			fnq1 = &fnp[0];
+			qf_load(hwi,fnq1,&qf_lin);
+			
+			printf ("Cant pars %d\n",qf_lin);
+			for (j=0; j< qf_lin; j++)
+			{	
+				printf ("Par %2d |%s| \n",j,(*fnp[j]).l);
+
+			}
+
+			fclose(hwi);
+		}
+	}
+
+#endif
+
+
+
 
 	for (i=0; i < gp_fq(GP_GET,0);  )
 	{
@@ -6718,8 +7027,6 @@ char	**vpar_p;
 
 	gp_fq(GP_SET,vpar_q);
 	gp_fp(GP_SET,0,vpar_p);
-
-
 }
 
 
@@ -7168,6 +7475,7 @@ int	gp_default()
 	gp_help=0;
 	gp_verbose=0;
 
+	ffcfg=0;
 	ffinp=0;
 	ffin2=0;
 	ffout=0;
@@ -7427,6 +7735,8 @@ int	pro_prue3()
 	char	b2[MAXB];
 	FILE	*hwi;
 
+
+
 	char	z[MAXV];
 	sprintf (z,"prue3");
 
@@ -7439,7 +7749,6 @@ int	pro_prue3()
 		gp_uso(11);
 
 	/* bloque */
-
 		
 	/* proceso */
 	if (gp_fverbose("d1"))
@@ -7450,27 +7759,6 @@ int	pro_prue3()
 
 #endif
 /* bloque */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
