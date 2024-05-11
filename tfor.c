@@ -12,13 +12,21 @@
 
 
 
+
+
+
 /*
  *	//header//
  *
  *	tfor.c
  *	
  *
- *	Thu May  2 07:00:51 -03 2024
+ *	Thu May  9 06:34:25 -03 2024
+ *	agregue tool6 para arreglar lineas de continuacion
+ *
+ *	Sat May  4 04:43:47 -03 2024
+ *	agregue a opcion "prue2" que genere los archivos cargados 
+ *	en un nuevo directorio
  *
  *
  *	proyecto estabiliazcion de codigo fuente de fortran
@@ -166,6 +174,17 @@
  *	WIP 
  *
  *
+ * - - - - - - - - - - - - - - - - - - - - - - - - 
+ *
+ *	tool6:
+ *
+ *	Carga source en memo, trabaja, y graba
+ *	Carga como vector de punteros a estructuras lineas completa
+ *	Parsea cada linea a token
+ *	
+ *	Arregla las lineas de continuacion en fortran
+ *
+ *	./tfor -v -opciones=d5 -tool=6 -inp=t1.for -out=t2.for > log
  *
  *
  *
@@ -223,6 +242,7 @@
  *	502	overflow en busco_use
  *
  *	901	error en malloc
+ *	902	error en malloc
  *	999	error debug
  */
 
@@ -304,6 +324,7 @@ char	gp_p[MAXP];
 
 
 char	gp_opciones[MAXV];	/* opciones adicionales, informadas de la forma -opciones=[letras]  */
+char	gp_dato[MAXV];		/* dato adicional que se desee informar ... cualquier string */
 char	gp_pruebas[MAXV];	/* pruebas ...    -prue=[nro]   ej:  -prue=1    */
 char	gp_exec[MAXV];		/* execs ...      -exec=[rnp]   ej:  -exec=1    */
 char	gp_proc[MAXV];		/* procs ...      -proc=[rnp]   ej:  -proc=1    */
@@ -370,6 +391,8 @@ int	pro_tool2();
 int	pro_tool3();
 int	pro_tool4();
 int	pro_tool5();
+int	pro_tool6();
+int	pro_tool7();
 
 
 
@@ -411,6 +434,8 @@ int	ffprb;		/* utilizo -prueba=1 ... 2 .. 3 etc */
 int	ffexc;		/* utilizo -exec=1 .. 2  .. 3 etc   */
 int	ffpro;		/* utilizo -proceso=1 .. 2 .. 3 etc */
 int	fftoo;		/* utilizo -tool=1 .. 2 .. 3 etc */
+
+int	ffdat;		/* utilizo -dato */
 
 int	fftb1;
 int	fftb2;
@@ -454,6 +479,7 @@ char	tk[MAXT][MAXB];
 
 /*
  * 	Variables y estructs para cargar todo un archivo en memoria
+ *	const y estructs especificas para todo el tema de estabilizacion de fortran
  *
  */
 
@@ -481,7 +507,19 @@ int	pf_write();			/* proceso de write del file */
 
 
 
+#define	MAX_FF		500		/* cant max de archivos fuentes a manejar */
+int	qf_ff;
 
+typedef	struct tff	*ffptr;
+typedef	struct tff
+{	char	n[MAXB];		/* nombre de file */
+	int	pf,uf;			/* primera - ultima fila */
+	int	f1,f2,f3;		/* flags prop general */
+}	ff;
+
+ffptr	ffp1,ffp2,*ffq1,*ffq2;		/* punteros varios */
+
+ffptr	tb[MAX_FF];
 
 
 /*
@@ -539,9 +577,16 @@ char	*extract_fname(char *);
 
 int	linea_vacia_for(char *);
 int	cfor_vars(int *,int *);
+int	cfor_lcon(int *,int *);
 int	l_pars(int, int *);
 int	tiene_dec_var1();
+int	tiene_mas(char *);
 int	fix_dec_var1();
+int	p_src();
+int	es_cadena_valida(int,char *);
+
+
+
 
 /*
  *	prueba loca
@@ -634,8 +679,6 @@ Además, declara variables de tipos `nodeptr` y un puntero a `nodeptr`.
 /*
  * -----------------------------------------------------------------------------------
  *
- *	(MMM)
- *
  *	main
  *
  * -----------------------------------------------------------------------------------
@@ -714,12 +757,9 @@ char	**argv;
 /*
  * -----------------------------------------------------------------------------------
  *
- *	(MMM)
- *
  * 	reportes 
  *
  * 	muestra reportes al finalizar todos los procesos
- *
  *
  * -----------------------------------------------------------------------------------
  */
@@ -747,12 +787,9 @@ int	mostrar_reportes()
 /*
  * -----------------------------------------------------------------------------------
  *
- *	(MMM)
- *
  * 	proceso_principal
  *
  * 	procesa zonas definidas en el mapa
- *
  *
  * -----------------------------------------------------------------------------------
  */
@@ -793,6 +830,8 @@ int	proceso_principal()
 			pro_prue1();
 		if (ffprb == 2)
 			pro_prue2();
+		if (ffprb == 3)
+			pro_prue3();
 	}	
 
 	if ( ffexc)
@@ -825,6 +864,8 @@ int	proceso_principal()
 			pro_tool4();
 		if (fftoo == 5)
 			pro_tool5();
+		if (fftoo == 6)
+			pro_tool6();
 	}
 
 
@@ -842,12 +883,10 @@ int	proceso_principal()
 /*
  * -----------------------------------------------------------------------------------
  *
- *
  * 	proc_principal
  *
  * 	parser1
  * 	parser de linea de texto
- *
  *
  * -----------------------------------------------------------------------------------
  */
@@ -2411,8 +2450,6 @@ stptr	*q1;
 /*
  * -----------------------------------------------------------------------------------
  *
- *	(MMM)
- *
  *	pro_prueba 2
  *
  *	pruebas ...
@@ -2429,26 +2466,36 @@ stptr	*q1;
  */
 
 
-/* qf_load   OJO este no !!! */
 #if 0
 
+#define	MAX_FF		500		* cant max de archivos fuentes a manejar */
+int	qf_ff;
 
-int	qf_load(pfr,q1,l1)
-FILE	*pfr;
-fnptr	*q1;
-int	*l1;
+typedef	struct tff	*ffptr;
+typedef	struct tff
+{	char	n[MAXB];		/* nombre de file */
+	int	pf,uf;			/* primera - ultima fila */
+	int	f1,f2,f3;		/* flags prop general */
+}	ff;
+
+ffptr	ffp1,ffp2,*ffq1,*ffq2;		/* punteros varios */
+
+ffptr	tb[MAX_FF];
+
 #endif
+
 
 int	pro_prue2()
 {
 
 	int	i,j,k;
-	char	d1[MAXV];
+	char	d1[MAXB];
+	char	d2[MAXB];
 	int	ql,qlf;
 	int	flag;
 	int	q_ptr;
 
-	FILE	*hw;
+	FILE	*hwi,*hwo;
 
 
 	char	z[MAXV];
@@ -2459,13 +2506,15 @@ int	pro_prue2()
 	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
 	}
 
-	if (!ffinp)
-		gp_uso(0);
+	if (!ffinp || !ffdat )
+		gp_uso(11);
+
 
 
 	/* cantidad de lineas en el archivo  */
-	ql=0;
+	qf_ff = 0;
 	q_ptr = 0;
+	ql=0;
 
 	while (fgets(d1,MAXB,hfinp) != NULL)
 	{
@@ -2486,18 +2535,35 @@ int	pro_prue2()
 			if (gp_fverbose("d3"))
 				printf ("Archivo a cargar:  |%s|\n",d1);
 
-			if ( 1 && ((hw = fopen (d1,"r")) == NULL) )
+			if ( 1 && ((hwi = fopen (d1,"r")) == NULL) )
 				error(601);
 
 			fnq1 = &fnp[q_ptr];
-			qf_load(hw,fnq1,&qlf);
+			qf_load(hwi,fnq1,&qlf);
 
-			fclose (hw);
+			fclose (hwi);
 
 			/* procese file */
 			if (gp_fverbose("d3"))
 				printf ("Archivo cargado:  %5d |%s|\n\n",qlf,d1);
 
+
+			/* registro datos del archivo */
+			tb[qf_ff] = (ffptr ) malloc (sizeof (ff));
+			if ( tb[qf_ff] == NULL )
+				error(903);
+
+			strcpy ( (*tb[qf_ff]).n, extract_fname(d1));
+			(*tb[qf_ff]).pf = q_ptr;
+			(*tb[qf_ff]).uf = q_ptr+qlf-1;
+
+			if (gp_fverbose("d1"))
+			{
+				printf ("load: %5d %5d |%s|\n",
+					(*tb[qf_ff]).pf,(*tb[qf_ff]).uf,(*tb[qf_ff]).n);
+			}
+
+			qf_ff++;
 			q_ptr += qlf;
 			ql++;
 		}
@@ -2526,6 +2592,30 @@ int	pro_prue2()
 
 #endif
 
+	/* proceso todos los files */
+	p_src();
+
+
+
+	/* grabo new file */
+	for (i = 0; i < qf_ff; i++)
+	{
+		/* nombre del archivo de salida */
+		sprintf (d2,"%s/%s",gp_dato,extract_fname( (*tb[i]).n));
+
+		if ( 1 && ((hwo = fopen (d2,"w")) == NULL) )
+			error(602);
+
+		for (j = (*tb[i]).pf ; j<= (*tb[i]).uf; j++)
+		{
+			fprintf (hwo,"%s\n", (*fnp[j]).l );
+		}
+	}
+
+
+	fclose(hwo);
+
+
 		
 	/* proceso */
 	if (gp_fverbose("d1"))
@@ -2537,6 +2627,201 @@ int	pro_prue2()
 
 
 
+int	p_src()
+{
+
+	int	i,j,k,l;
+	int	f1,f2,f3,f4;
+	int	pf,uf;
+
+	char	b1[MAXB];
+
+
+	printf ("proceso file ... \n");
+
+	for (i=0; i< qf_ff; i++)
+	{
+		if (gp_fverbose("d1"))
+		{
+			printf ("proceso: %6d %6d |%s|\n",
+				(*tb[i]).pf,(*tb[i]).uf,(*tb[i]).n);
+
+		}
+
+
+		pf = (*tb[i]).pf;
+		uf = (*tb[i]).uf;
+
+		for (j = pf; j <= uf; j++)
+		{
+			/* parseo fila a tokens */
+			l_pars(j,&q_tk);
+
+
+			/*
+			 * detectar si la linea es comentarios ...
+			 * falta mas ... chequear si no puso ! o c en otra posicion que no sea 0
+			 */
+
+			f4 = 1;
+				if (!strcmp("!",tk[0]))
+					f4 = 0;
+				if (!strcmp("C",tk[0]))
+					f4 = 0;
+				if (!strcmp("c",tk[0]))
+					f4 = 0;
+
+			for (k=0; f4 && k<q_tk; k++)
+			{
+
+
+				if (es_cadena_valida(1,tk[k]))
+				{
+					memset (b1,0,MAXB);
+					f1 = 1;
+					f2 = 1;
+
+					while (f1)
+					{
+						strcat(b1,tk[k]);
+						
+						k++;
+						if (k == q_tk)
+							f1 = 0;
+
+						if (f1 && !es_cadena_valida(2,tk[k]) )
+							f1 = 0, f2 = 0;
+					}
+
+					/*
+					 * ojo ... falta hacer un trim si hay blancos al final 
+					 *
+					 */
+					if (f2)
+					{
+						if (strlen(b1) > 25)
+							fprintf (hfout,"|%s|\n",b1);
+					}
+				} 
+			} 
+		}
+	}
+}
+
+
+
+
+int	es_cadena_valida(pos,s)
+int	pos;
+char	*s;
+{
+	int	i,j,k,flag;
+	int	f1,f2;
+	char	c;
+
+	flag=1;
+	if (!strcmp("use",pasar_a_minusc(s) ))
+		flag = 0;
+	if (!strcmp("subroutine",pasar_a_minusc(s) ))
+		flag = 0;
+	if (!strcmp("entry",pasar_a_minusc(s) ))
+		flag = 0;
+	if (!strcmp("call",pasar_a_minusc(s) ))
+		flag = 0;
+	if (!strcmp("end",pasar_a_minusc(s) ))
+		flag = 0;
+	if (!strcmp("integer",pasar_a_minusc(s) ))
+		flag = 0;
+
+	for (i=0; flag && i<strlen(s); i++)
+	{
+		c = s[i];
+
+		flag = 0;
+
+		if (pos == 1)
+		{	
+			if ( c >= 'a' && c <= 'z' )
+				flag = 1;
+			if ( c >= 'A' && c <= 'Z' ) 
+				flag = 1;
+
+		}
+
+		if (pos == 2)
+		{
+			if ( c >= 'a' && c <= 'z' )
+				flag = 1;
+			if ( c >= 'A' && c <= 'Z' ) 
+				flag = 1;
+			if ( c >= '0' && c <= '9' )
+				flag = 1;
+			if ( c == ' ' || c == '_' )
+				flag = 1;
+		}
+
+	}
+
+	return flag;
+}
+
+
+
+
+
+
+/*
+ * -----------------------------------------------------------------------------------
+ *
+ *	pro_prue 3
+ *
+ * -----------------------------------------------------------------------------------
+ */
+
+/*
+ *
+ *	prue3
+ *
+ *	Descripcion:
+ *
+ */
+
+
+/* bloque */
+#if 1
+
+
+int	pro_prue3()
+{
+	int	i,j,k;
+	int	f1,f2,f3;
+	char	b1[MAXB];
+	char	b2[MAXB];
+	FILE	*hwi;
+
+	char	z[MAXV];
+	sprintf (z,"prue3");
+
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
+	}
+
+	if (!1 || !2 )
+		gp_uso(11);
+
+	/* bloque */
+
+		
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[1],z);
+	}
+}
+
+
+#endif
+/* bloque */
 
 
 
@@ -2939,7 +3224,7 @@ int	pf_load()
 
 			fnp[ql] = ( fnptr ) malloc ( sizeof (node));
 			if ( fnp[ql] == NULL)
-				error(901);
+				error(902);
 
 			sprintf ( (*fnp[ql]).l,"%s",b1);
 			(*fnp[ql]).f1 = 0;
@@ -3362,6 +3647,7 @@ int	check_fnames()
 
 
 
+
 /*
  * -----------------------------------------------------------------------------------
  *
@@ -3384,7 +3670,7 @@ char	*s;
 	if (j==0)
 		k=0;
 	else	
-		k=j*1;
+		k=j+1;
 
 	return b+k;
 }
@@ -3670,7 +3956,7 @@ FILE	*fpr;
 
 			fnp[qf_lin] = ( fnptr ) malloc ( sizeof (node));
 			if ( fnp[qf_lin] == NULL)
-				error(901);
+				error(904);
 
 			sprintf ( (*fnp[qf_lin]).l,"%s",b1);
 			(*fnp[qf_lin]).f1 = 0;
@@ -3798,7 +4084,7 @@ int	proc_makefile()
 #endif
 							fnf[qf_fen] = ( fnptr ) malloc ( sizeof (node));
 							if ( fnf[qf_fen] == NULL)
-								error(902);
+								error(905);
 
 							sprintf ( (*fnf[qf_fen]).l,"%s",b2);
 							(*fnf[qf_fen]).f1 = 1;	
@@ -3996,7 +4282,7 @@ char	c;
 
 #if 0
 	/* agrego los que vienen de analizar fuentes fortran */
-	if (c == '\'' || c == '%' || c == '!' || c == '*' )
+	if (c == '\'' || c == '%' || c == '!' || c == '*'  )
 		x = TC_CVR;
 
 	if (c == '"' || c == '&' || c == '+' || c == '=' || c == '>' || c == '<' || c == '?' )
@@ -4338,7 +4624,6 @@ int	*ql_f;
 
 }
 
-/* locator EEE */
 
 
 int	fix_dec_var1()
@@ -4910,14 +5195,260 @@ int	pro_tool5()
 
 
 
+/*
+ * -----------------------------------------------------------------------------------
+ *
+ *	tool6
+ *
+ * -----------------------------------------------------------------------------------
+ */
+
+/*
+ *	Descrip
+ *
+ * 	carga un src en memoria, en vector a pnt de esctructs
+ *
+ *	- cambia lineas de continuacion
+ *
+ */
+
+
+#if 1
+
+int	pro_tool6()
+{
+	int	i,j,k;
+	int	ql_ini,ql_fin;
+	int	lml;
+
+	char	b1[MAXB];
+
+	char	z[MAXV];
+	sprintf (z,"tool6");
+
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
+	}
+
+	/*
+	 * en aux graba caracteres no contemplados por el parser
+	 *
+	 */
+	if (!ffinp || !ffout || !ffaux)
+		gp_uso(12);
+
+	/* cargamos file en memo */
+	fnq1 = &fnp[0];
+	qf_load(hfinp,fnq1,&ql_ini);
+
+	lml=0;
+	for (i=0; i<ql_ini; i++)
+	{
+		strcpy(b1, (*fnp[i]).l );
+		if ( b1[0] != 'C' && b1[0] != 'c' && b1[0] != '!')
+		{	
+			if ( (k = strlen( b1) ) > lml)
+				lml = k;
+		}
+	}
+	if (gp_fverbose("d1"))
+	{
+		printf ("Linea mas larga: %4d\n\n",lml);
+	}
+
+	/* mientras que no cambie la cant de lineas !!! */
+	ql_fin=ql_ini;
+
+	
+#if 1
+	/* 2 - cambio las lineas de continuacion   */
+	cfor_lcon(&ql_ini,&ql_fin);
+#endif
+
+
+	/* grabo file */
+	for (i=0; i< ql_fin; i++)
+	{
+		strcpy(b1, (*fnp[i]).l );
+
+		if (gp_minusculas)
+			strcpy( b1 , pasar_a_minusc( (*fnp[i]).l )  );
+
+		fprintf (hfout,"%s\n",b1);
+	}
+
+
+
+
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[1],z);
+	}
+}
+
+#endif
+
+
+
+
+/*
+ * -----------------------------------------------------------------------------------
+ *
+ *	cfor_lcon
+ *
+ * -----------------------------------------------------------------------------------
+ */
+
+
+int	cfor_lcon(ql_i,ql_f)
+int	*ql_i;
+int	*ql_f;
+{
+
+	int	i,j,k;
+	int	p1,p2;
+	int	f1,f2,f3;
+	int	qi,qf;
+
+	char	b1[MAXB];
+	char	b2[MAXB];
+	char	b3[MAXB];
+	char	b4[MAXB];
+	char	b5[MAXB];
+
+
+	qi = *ql_i;
+	qf = *ql_f;
+	memset(b4,' ',MAXB);
+
+	/* ultima linea -1, la ultima linea no puede tener continuacion ... */
+	for (i=0; i< qi - 1; i++)
+	{
+		/* copio linea y linea siguiente */
+		strcpy(b1, (*fnp[i]).l );
+		strcpy(b2, (*fnp[i+1]).l );
+
+		l_pars(i,&q_tk);
+
+		if(gp_fverbose("d4"))
+		{
+			for (j=0; j<q_tk; j++)
+			{
+				printf ("TK: %3d %3d |%s|\n",j,strlen(tk[j]),tk[j]);
+			}
+			printf ("voy b2: |%s| \n",b2);
+		}
+
+		if ( tiene_mas(b2) )
+		{
+			/* OJO! si tiene mas, pero la linea anterior 
+			 * es comentario ... no soportamos ese cambio
+			 * parar con error 
+			 */
+
+			if ( b1[0] == 'C' || b1[0] == 'c' || b1[0] == '!')
+			{	printf ("Linea %d tiene comentario y siguiente con + \n",i);
+				error(801);
+			}
+
+			if (gp_fverbose("d3"))
+			{
+				printf ("cfor: mas detectado \n");
+				printf ("cfor: %4d #tk %4d |%s|\n",i,q_tk,b1);
+				printf ("cfor: %4d     %4d |%s|\n",i+1,0,b2);
+			}
+
+			/* tengo que arreglar ambas lineas */
+			memset (b3,0,MAXB);
+			for (j=0; j< q_tk; j++)
+				strcat (b3,tk[j]);
+
+			memset(tk[q_tk],0,MAXB);
+			strncpy(tk[q_tk++],b4,78-strlen(b3));
+			sprintf (tk[q_tk++],"&");
+			
+			/* me falta la linea siguiente con el + */
+			/* q&d ... no time */
+			f1=1;
+			for (j=0; f1 && j<strlen(b2); j++)
+			{	
+				if (b2[j]=='+')
+				{		
+					b2[j]=' ';
+					f1=0;
+				}
+			}
+
+				
+		}
+
+
+		/* armo la linea de nuevo con todos los tokens */
+		memset (b3,0,MAXB);
+		for (j=0; j< q_tk; j++)
+			strcat (b3,tk[j]);
+		strcpy ( (*fnp[i]).l, b3);
+		if (gp_fverbose("d2"))
+			printf ("fix: |%s|\n",b3);
+
+
+		/* copio la segunda linea, sin el mas */
+		strcpy ( (*fnp[i+1]).l, b2);
+	}
+}
+
+
+int	tiene_mas(s)
+char	*s;
+{
+	int	i,j,k;	
+	int	f1,f2,f3;
+	char	b1[MAXB];
+
+	f1=0;
+	f2=1;
+
+	strcpy(b1,s);
+
+	for (i=0; !f1 && f2 && i<strlen(s); i++)
+	{
+		if (b1[i] != ' ')
+		{	if (b1[i] == '+' && b1[i+1] == ' ')
+			{
+				f1 = 1;
+			}
+			else
+				f2 = 0;
+		}
+	}
+
+	return f1;
+}
+
+
+
+
+
+
+
+
+/*
+ * -----------------------------------------------------------------------------------
+ *
+ *	A partir de aca ... rutinas generales
+ *	No agregar nada particular a un programa determinado (no insistas)
+ *
+ * -----------------------------------------------------------------------------------
+ */
+
+
 
 
 /*
  * -----------------------------------------------------------------------------------
  *
  *	abro_files
- *
- *	
  *
  * -----------------------------------------------------------------------------------
  */
@@ -6008,12 +6539,19 @@ int	gp_parser()
 
 
 			if (!strncmp(gp_fp(GP_GET,i,(char **)0)+1,"nvd",3) )
-				gp_niveldes = *desde_igual( gp_fp(GP_GET,i,(char **)0)) - '0';
+			{	gp_niveldes = *desde_igual( gp_fp(GP_GET,i,(char **)0)) - '0';
+			}
 
 
 			if (!strncmp(gp_fp(GP_GET,i,(char **)0)+1,"opciones",6) )
 			{	
 				strcpy(gp_opciones,desde_igual( gp_fp(GP_GET,i,(char **)0)));
+			}
+
+			if (!strncmp(gp_fp(GP_GET,i,(char **)0)+1,"dato",4) )
+			{	
+				strcpy(gp_dato,desde_igual( gp_fp(GP_GET,i,(char **)0)));
+				ffdat=1;
 			}
 
 			if (!strncmp(gp_fp(GP_GET,i,(char **)0)+1,"prue",4) )
@@ -6395,6 +6933,16 @@ char	c;
 	if (c == '"' || c == '&' || c == '+' || c == '=' || c == '>' || c == '<' || c == '?' )
 		x = TC_CVR;
 
+	/* agrego los que vienen de analizar fuentes fortran */
+	if (c == '$' || c == '#' || c == '^' || c == '@' )
+		x = TC_CVR;
+
+
+
+
+
+
+
 	if (c == 0)
 		x = TC_CHO;
 
@@ -6585,22 +7133,25 @@ int	x;
 	printf ("%s -v -opciones=d5 -tool=2 -inp=makefile -out=l1 -m             (in lower case)                   \n",z);
 	printf ("                                                                                                  \n");
 	printf ("tool3:         carga file con listado de archivos y genera mismo pasado a minusculas              \n");
- 	printf ("%s -v -opciones=d5 -tool=3 -inp=foile  -out=file_to_min                                           \n",z);
+ 	printf ("%s -v -opciones=d5 -tool=3 -inp=file  -out=file_to_min                                            \n",z);
 	printf ("                                                                                                  \n");
 	printf ("tool5:         carga un fuente - procesos varios - genera nuewvo fuente                           \n");
 	printf ("%s -v -opciones=d5 -tool=5 -inp=f_org -out=f_new -aux=parser.err -f                               \n",z);
 	printf ("%s -v -opciones=d5 -tool=5 -inp=f_org -out=f_new -aux=parser.err     (version graba tokens )      \n",z);
+	printf ("                                                                                                  \n");
+	printf ("tool6:         carga un fuente - arregla lineas de con fortran - genera nuevo fuente              \n");
+	printf ("%s -v -opciones=d5 -tool=6 -inp=f_org -out=f_new -aux=parser.err                                  \n",z);
+	printf ("                                                                                                  \n");
 
 
+	if (gp_fverbose("d1"))
+		printf ("gp_uso(%d)\n",x);
 
 	printf ("\n\n\n");
 
 	exit(x);
 }
 
-#if 0
- *	./tfor -v -opciones=d5 -tool=5 -inp=a_org -out=a_new
-#endif
 
 /*
  * -----------------------------------------------------------------------------------
@@ -6627,11 +7178,14 @@ int	gp_default()
 	ffsrc=0;
 	fflst=0;
 
-	sprintf (gp_opciones,"%s","______");
-	sprintf (gp_pruebas, "%s","______");
-	sprintf (gp_exec   , "%s","______");
-	sprintf (gp_proc   , "%s","______");
-	sprintf (gp_tool   , "%s","______");
+	ffdat=0;
+
+	sprintf (gp_opciones, "%s","______");
+	sprintf (gp_dato    , "%s","______");
+	sprintf (gp_pruebas , "%s","______");
+	sprintf (gp_exec    , "%s","______");
+	sprintf (gp_proc    , "%s","______");
+	sprintf (gp_tool    , "%s","______");
 
 	memset(gp_tpar,0,sizeof(gp_tpar));
 
@@ -6836,6 +7390,84 @@ char	*s;
  *	end of source
  * -----------------------------------------------------------------------------------
  */
+
+
+
+
+
+
+
+
+/*
+ * -----------------------------------------------------------------------------------
+ *
+ *	pro_prue 3
+ *
+ * -----------------------------------------------------------------------------------
+ */
+
+/*
+ *
+ *	prue3
+ *
+ *	Descripcion:
+ *
+ */
+
+
+/* bloque */
+#if 0
+
+
+int	pro_prue3()
+{
+	int	i,j,k;
+	int	f1,f2,f3;
+	char	b1[MAXB];
+	char	b2[MAXB];
+	FILE	*hwi;
+
+	char	z[MAXV];
+	sprintf (z,"prue3");
+
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[0],z);
+	}
+
+	if (!1 || !2 )
+		gp_uso(11);
+
+	/* bloque */
+
+		
+	/* proceso */
+	if (gp_fverbose("d1"))
+	{	printf ("%s%s%s\n\n",gp_tm(),gp_m[1],z);
+	}
+}
+
+
+#endif
+/* bloque */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
