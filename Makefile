@@ -1,15 +1,44 @@
+# Variables
+PROJECT   = cnfor
+SRC_DIR   = ~/wrk/cnfor
+BLD_DIR   = .
+BIN_DIR   = .
+EXEC      = cnv_f08
 
-all:		cnv_f08 tfor
+# Comandos
+CC      = gcc
+#CFLAGS = -Wall -O2
+CFLAGS  = 
 
+# Tareas
+.PHONY: all clean 
+
+all: 		$(EXEC)
 
 clean:
-		rm *.exe
+	@echo "Borrando files temporarios ... "
+	@rm -f *.o *.exe *.log log
+	@echo "Listo ..."
 
 
-cnv_f08:	cnv_f08.c
-		gcc -o cnv_f08 cnv_f08.c
+# para compilar .c a .o
+$(BLD_DIR)/%.o:	$(SRC_DIR)/%.c
+		$(CC) $(CFLAGS) -c -o $@ $<
 
-tfor:		tfor.c
-		gcc -o tfor tfor.c
+# para link de objetos a exe
+$(BLD_DIR)/%: 	$(BLD_DIR)/%.o
+		$(CC) $(CFLAGS) -o $@ $^
+
+
+
+
+
+
+
+
+
+
+
+
 
 
