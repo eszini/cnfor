@@ -1,0 +1,5 @@
+cd gf77/p07_errinfo
+make
+./parser < ../p06_err_f77/error.f
+
+

@@ -1,0 +1,6 @@
+make
+# ./clasifica_tokens ../paso_02_programa_fortran_ejemplo/programa.f salida.txt -ldt=../paso_03_analisis_tokens/fortran77_keywords.txt
+
+
+./clasifica ../p02_f77_ok/programa.f salida.txt -ldt=../p03_kwlist/kw_f77.txt
+
