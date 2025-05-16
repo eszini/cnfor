@@ -1,0 +1,36 @@
+Entonces.
+
+Estrategia ...
+
+1) hay una pauta previa .
+    todos estos pasos, despues los quiero hacer con ollama  (llama2)
+    entonces, al final de cada paso, me ayudas a escribir los comandos o pasos 
+    que tendria que hacer en ollama.
+
+2) el conjunto tiene programas es fortran 77 y proramas que ya fueron pasados 
+   a fortran 90, o sea, que la gramatica tiene que servir para ambos modelos !!!
+  ( o bien, hacer una gramatica para f77 y otra para f90 ... me parece mejor )
+entonces 
+
+1) me ayudas a hacer un tokenizador sencillo en lenguaje C que me permita separar entidades al procesar un programa, por ejemplo, encontrar palabras (subroutine, end , function , use, nombres de variables etc )
+
+2) me ayudas a generar un programa sencillo en fortran que tenga una estructura basica
+    una subrutina, un par de sentencias use, un para de declaraciones de variables, algunas cuentas,   un entry, un end etc   . 
+
+3) corremos el tokenizador y sacamos las palabras reservadas de fortran 
+
+4) con esas palabras, me ayudas a hacer una gramatica
+
+5) con la gramatica armada, me ayudas a hacer un programa en C que procese un fuente en fortran y "parsee" en funcion de la gramatica, y que pare y me indique cuando encontro un error (algo que no se condice con la gramatica )
+
+6) me ayudas a generar un programa fortran que contenga un error 
+
+7) me ayudas con un script que genere el programa, utilizando flex, bison, etc 
+
+8) probamos el programa con el fuente correcto y el incorrecto 
+
+9) vemos como generar un ciclo para que en cada paso, vamos enriqueciendo la gramatica 
+
+10) todo lo que me generas, por favor me lo pones en un comprimido que pueda bajar , asi tengo versiones ordenadas por sub directorios de cada paso que damos ?
+
+que te parece ??

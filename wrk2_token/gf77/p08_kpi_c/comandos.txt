@@ -1,0 +1,17 @@
+
+
+📁 Contenido (gf77/p08_kpi_c/):
+Archivo	Descripción
+kpi_analyzer.c	Analiza un .for o .f90 y calcula KPIs
+Makefile	Para compilar el programa con make
+README.txt	Instrucciones de uso y explicación de los KPIs
+
+
+
+
+cd gf77/p08_kpi_c
+make
+./kpi_analyzer ../p06_err_f77/error.f > resultado.kpi
+
+
+

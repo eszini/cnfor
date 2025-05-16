@@ -1,0 +1,3 @@
+make
+
+./parser < ../p06_err_f77/error.f
